@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MardoCars - Gestao de Frota</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0f;color:#e2e8f0;font-family:system-ui,sans-serif;display:flex;min-height:100vh}
+#sidebar{width:185px;min-width:185px;background:#0f0f1a;border-right:1px solid #1e1e2e;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.logo{padding:16px 14px;border-bottom:1px solid #1e1e2e}
+.logo-title{font-size:15px;font-weight:900;color:#f97316}
+.logo-sub{font-size:11px;color:#4a4a6a;margin-top:2px}
+.nav-item{padding:11px 14px;cursor:pointer;font-size:13px;color:#6b7280;border-left:3px solid transparent}
+.nav-item.active{color:#f97316;background:#1a1000;border-left-color:#f97316;font-weight:700}
+.sidebar-bottom{margin-top:auto;padding:10px;border-top:1px solid #1e1e2e;font-size:11px;color:#4a4a6a;text-align:center}
+#main{flex:1;padding:20px 22px;overflow-y:auto;max-height:100vh}
+.page{display:none}.page.active{display:block}
+h1{font-size:21px;font-weight:900;color:#f1f5f9;margin-bottom:3px}
+.sub{font-size:13px;color:#4a4a6a;margin-bottom:16px}
+.alert-box{border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px}
+.alert-red{background:#2d0a0a;border:1px solid #ef4444;color:#ef4444}
+.alert-yellow{background:#2d1b00;border:1px solid #f59e0b;color:#f59e0b}
+.alert-orange{background:#2d1500;border:1px solid #f97316;color:#fb923c}
+.grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+.card{background:#0f0f1a;border:1px solid #1e1e2e;border-radius:12px;padding:14px}
+.stat-num{font-size:26px;font-weight:900}
+.stat-label{font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.filter-btn{padding:5px 12px;border-radius:20px;border:none;font-size:12px;cursor:pointer;background:#1a1a2e;color:#6b7280}
+.filter-btn.active{background:#f97316;color:#fff;font-weight:600}
+.car-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:10px}
+.car-card{background:#0f0f1a;border:1px solid #1e1e2e;border-radius:12px;padding:14px}
+.badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;display:inline-block}
+.docs-row{display:flex;flex-wrap:wrap;gap:3px;margin:7px 0}
+.doc-badge{font-size:10px;padding:2px 6px;border-radius:8px}
+.doc-ok{background:#052e16;color:#22c55e;border:1px solid #22c55e33}
+.doc-no{background:#2d0a0a;color:#ef4444;border:1px solid #ef444433}
+.info-box{padding:6px 10px;border-radius:8px;font-size:12px;margin:5px 0;line-height:1.5}
+.info-alug{background:#1a1000;color:#f59e0b}
+.info-dep{background:#1a1a2e;color:#818cf8}
+.info-ofic{background:#2d0a0a;color:#ef4444}
+.info-multa{background:#2d0a1a;color:#f472b6}
+.info-venc{background:#1a1a2e;color:#60a5fa}
+.btn-row{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.btn{padding:5px 11px;border-radius:7px;border:none;cursor:pointer;font-size:12px;font-weight:600}
+.btn-blue{background:#818cf822;color:#818cf8}
+.btn-red{background:#ef444422;color:#ef4444}
+.btn-green{background:#22c55e22;color:#22c55e}
+.btn-orange{padding:8px 14px;background:#f97316;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px}
+table{width:100%;border-collapse:collapse;background:#0f0f1a;border-radius:12px;overflow:hidden}
+th{padding:9px 10px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;background:#0a0a0f}
+td{padding:9px 10px;font-size:12px;border-top:1px solid #1e1e2e;vertical-align:middle}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;z-index:999;padding:12px}
+.modal{background:#0f0f1a;border:1px solid #2a2a3e;border-radius:16px;padding:20px;width:100%;max-width:540px;max-height:92vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:800;color:#f1f5f9;margin-bottom:14px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+label{display:block;font-size:11px;color:#6b7280;margin-bottom:3px;text-transform:uppercase}
+input,select{width:100%;background:#0a0a0f;border:1px solid #2a2a3e;border-radius:8px;padding:8px 11px;color:#e2e8f0;font-size:13px;outline:none}
+.check-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.check-item{display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer}
+.section-label{font-size:12px;font-weight:700;margin:12px 0 8px;padding:6px 10px;border-radius:8px}
+.sl-yellow{background:#2d1b0080;color:#f59e0b}
+.sl-pink{background:#2d0a1a80;color:#f472b6}
+.sl-blue{background:#1a1a2e80;color:#60a5fa}
+.tipo-row{display:flex;gap:8px;margin-bottom:12px}
+.tipo-btn{flex:1;padding:9px;border-radius:8px;border:2px solid #2a2a3e;background:transparent;color:#6b7280;cursor:pointer;font-size:13px;font-weight:600}
+.tipo-btn.td{border-color:#f97316;color:#f97316;background:#1a1000}
+.tipo-btn.ts{border-color:#818cf8;color:#818cf8;background:#1a1a3e}
+.total-box{background:#0a0a0f;border:1px solid #f97316;border-radius:8px;padding:9px 13px;margin:8px 0;font-size:13px;font-weight:700;color:#f97316}
+.dep-box{background:#0a0a0f;border:1px solid #818cf8;border-radius:8px;padding:7px 12px;margin:4px 0;font-size:12px;color:#818cf8}
+.venc-badge{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;display:inline-block;margin-left:4px}
+.venc-red{background:#2d0a0a;color:#ef4444}
+.venc-yellow{background:#2d1b00;color:#f59e0b}
+.venc-green{background:#052e16;color:#22c55e}
+.chat-container{display:flex;flex-direction:column;height:480px}
+.chat-messages{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+.msg{padding:8px 12px;border-radius:12px;max-width:82%;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.msg-user{align-self:flex-end;background:#f97316;color:#fff;border-radius:12px 12px 2px 12px}
+.msg-ai{align-self:flex-start;background:#1a1a2e;color:#e2e8f0;border-radius:12px 12px 12px 2px}
+.chat-input-row{display:flex;gap:8px;padding:10px;border-top:1px solid #1e1e2e}
+.chat-input-row input{flex:1}
+.suggestions{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.suggestion{padding:5px 11px;border-radius:20px;border:none;font-size:12px;background:#1a1a2e;color:#6b7280;cursor:pointer}
+.hidden{display:none!important}
+.notif-banner{position:fixed;top:16px;right:16px;z-index:9999;max-width:320px;background:#0f0f1a;border:1px solid #f97316;border-radius:12px;padding:14px 16px;font-size:13px;box-shadow:0 4px 24px rgba(0,0,0,0.5)}
+.pending-row{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:#0a0a0f;border-radius:8px;margin-bottom:5px;gap:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="logo">
+    <div class="logo-title">🚗 MardoCars</div>
+    <div class="logo-sub">Gestao de Frota</div>
+  </div>
+  <div class="nav-item active" onclick="goTo('dashboard',this)">📊 Dashboard</div>
+  <div class="nav-item" onclick="goTo('frota',this)">🚘 Minha Frota</div>
+  <div class="nav-item" onclick="goTo('docs',this)">📄 Documentos</div>
+  <div class="nav-item" onclick="goTo('alug',this)">🤝 Alugueis</div>
+  <div class="nav-item" onclick="goTo('financeiro',this)">💰 Financeiro</div>
+  <div class="nav-item" onclick="goTo('alertas',this)">🔔 Alertas</div>
+  <div class="nav-item" onclick="goTo('ia',this)">🤖 Assistente IA</div>
+  <div class="sidebar-bottom" id="sidebar-info">carregando...</div>
+</div>
+
+<div id="main">
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <h1>Dashboard</h1>
+    <div class="sub" id="dash-date"></div>
+    <div id="dash-alerts"></div>
+    <div class="grid4" id="dash-stats"></div>
+    <div class="grid3" id="dash-finance"></div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:10px">📋 Documentos Pendentes</div>
+      <div id="dash-docs"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:10px">⚠️ Vencimentos Proximos (30 dias)</div>
+      <div id="dash-venc"></div>
+    </div>
+  </div>
+
+  <!-- FROTA -->
+  <div id="page-frota" class="page">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div><h1>Minha Frota</h1><div class="sub" id="frota-count" style="margin-bottom:0"></div></div>
+      <button class="btn-orange" onclick="openNew()">+ Adicionar</button>
+    </div>
+    <div class="filters">
+      <button class="filter-btn active" onclick="setFilter('todos',this)">Todos</button>
+      <button class="filter-btn" onclick="setFilter('disponivel',this)">Disponivel</button>
+      <button class="filter-btn" onclick="setFilter('alugado',this)">Alugado</button>
+      <button class="filter-btn" onclick="setFilter('oficina',this)">Na Oficina</button>
+      <button class="filter-btn" onclick="setFilter('a_receber',this)">A Receber</button>
+    </div>
+    <div id="car-grid" class="car-grid"></div>
+  </div>
+
+  <!-- DOCUMENTOS -->
+  <div id="page-docs" class="page">
+    <h1>Documentos</h1>
+    <div class="sub" id="docs-sub"></div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Veiculo</th><th>Placa</th><th>Status</th><th>DPVAT</th><th>CRLV</th><th>CRV</th><th>Seguro</th><th>Licenc.</th><th>IPVA</th><th></th></tr></thead>
+        <tbody id="docs-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ALUGUEIS -->
+  <div id="page-alug" class="page">
+    <h1>Alugueis</h1>
+    <div class="sub" id="alug-sub"></div>
+    <div class="grid2">
+      <div class="card"><div class="section-label sl-yellow" style="margin-top:0">🤝 Alugados</div><div id="alug-list"></div></div>
+      <div class="card"><div class="section-label sl-blue" style="margin-top:0;background:#052e1680;color:#22c55e">✅ Disponiveis</div><div id="disp-list"></div></div>
+    </div>
+  </div>
+
+  <!-- FINANCEIRO -->
+  <div id="page-financeiro" class="page">
+    <h1>Financeiro</h1>
+    <div class="sub">Multas, IPVA, Licenciamento e Depositos</div>
+    <div class="grid3" id="fin-stats"></div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#f472b6;margin-bottom:10px">🚨 Multas Registradas</div>
+      <div id="multas-list"></div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#60a5fa;margin-bottom:10px">📋 IPVA e Licenciamento</div>
+      <div id="ipva-list"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:#818cf8;margin-bottom:10px">🏦 Depositos em Maos</div>
+      <div id="dep-list"></div>
+    </div>
+  </div>
+
+  <!-- ALERTAS -->
+  <div id="page-alertas" class="page">
+    <h1>🔔 Central de Alertas</h1>
+    <div class="sub">Vencimentos, pagamentos e pendencias</div>
+    <div id="alertas-content"></div>
+    <div style="margin-top:16px">
+      <button class="btn-orange" onclick="pedirNotificacoes()" id="btn-notif">Ativar Notificacoes do Celular</button>
+      <div style="font-size:12px;color:#4a4a6a;margin-top:6px" id="notif-status"></div>
+    </div>
+  </div>
+
+  <!-- IA -->
+  <div id="page-ia" class="page">
+    <h1>🤖 Assistente IA</h1>
+    <div class="sub">Pergunte sobre frota, financeiro ou estrategia</div>
+    <div class="suggestions" id="suggestions">
+      <button class="suggestion" onclick="askAI('Quais carros posso alugar hoje?')">Quais carros alugar hoje?</button>
+      <button class="suggestion" onclick="askAI('Resumo financeiro da frota')">Resumo financeiro</button>
+      <button class="suggestion" onclick="askAI('Quais documentos regularizar?')">Documentos a regularizar</button>
+      <button class="suggestion" onclick="askAI('Tenho multas ou vencimentos proximos?')">Multas e vencimentos</button>
+    </div>
+    <div class="card chat-container">
+      <div class="chat-messages" id="chat-msgs">
+        <div id="chat-empty" style="text-align:center;color:#4a4a6a;margin-top:50px">
+          <div style="font-size:36px;margin-bottom:8px">🤖</div>
+          <div style="font-size:14px;color:#6b7280">Seu assistente de frota MardoCars</div>
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="ai-input" placeholder="Digite sua pergunta..." onkeydown="if(event.key==='Enter') sendAI()"/>
+        <button class="btn-orange" onclick="sendAI()">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL VEICULO -->
+<div class="overlay hidden" id="modal-overlay" onclick="closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="modal-title">Adicionar veiculo</div>
+
+    <div class="form-grid">
+      <div><label>Marca</label><input id="f-marca" placeholder="Toyota"/></div>
+      <div><label>Modelo</label><input id="f-modelo" placeholder="Corolla"/></div>
+      <div><label>Placa</label><input id="f-placa" placeholder="ABC1D23"/></div>
+      <div><label>Ano</label><input id="f-ano" type="number" placeholder="2024"/></div>
+      <div><label>Cor</label><input id="f-color" placeholder="Branco"/></div>
+      <div><label>Status</label>
+        <select id="f-status" onchange="toggleFields()">
+          <option value="disponivel">Disponivel</option>
+          <option value="alugado">Alugado</option>
+          <option value="oficina">Na Oficina</option>
+          <option value="a_receber">A Receber</option>
+        </select>
+      </div>
+    </div>
+
+    <label style="margin-bottom:6px">Documentos</label>
+    <div class="check-row">
+      <label class="check-item"><input type="checkbox" id="f-soat"/> DPVAT</label>
+      <label class="check-item"><input type="checkbox" id="f-tecno"/> CRLV</label>
+      <label class="check-item"><input type="checkbox" id="f-tarjeta"/> CRV</label>
+      <label class="check-item"><input type="checkbox" id="f-seguro"/> Seguro</label>
+    </div>
+
+    <!-- LICENCIAMENTO + IPVA -->
+    <div class="section-label sl-blue">📋 Licenciamento e IPVA</div>
+    <div class="form-grid">
+      <div><label>Venc. Licenciamento</label><input id="f-licenc" type="date"/></div>
+      <div><label>Valor IPVA R$</label><input id="f-ipva-valor" type="number" placeholder="0"/></div>
+      <div><label>Venc. IPVA</label><input id="f-ipva-venc" type="date"/></div>
+      <div><label>IPVA pago?</label>
+        <select id="f-ipva-pago">
+          <option value="nao">Nao</option>
+          <option value="sim">Sim</option>
+          <option value="parcelado">Parcelado</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- MULTAS -->
+    <div class="section-label sl-pink">🚨 Multas</div>
+    <div class="form-grid">
+      <div><label>Descricao da multa</label><input id="f-multa-desc" placeholder="Ex: Excesso velocidade"/></div>
+      <div><label>Valor R$</label><input id="f-multa-valor" type="number" placeholder="0"/></div>
+      <div><label>Data vencimento</label><input id="f-multa-venc" type="date"/></div>
+      <div><label>Multa paga?</label>
+        <select id="f-multa-paga">
+          <option value="nao">Nao</option>
+          <option value="sim">Sim</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ALUGUEL -->
+    <div id="alug-fields" class="hidden">
+      <div class="section-label sl-yellow">🤝 Dados do Aluguel</div>
+      <div class="form-grid">
+        <div><label>Nome do cliente</label><input id="f-cliente"/></div>
+        <div><label>CPF / RG</label><input id="f-cedula"/></div>
+        <div><label>Data inicio</label><input id="f-inicio" type="date" oninput="calcTotal()"/></div>
+        <div><label>Data fim</label><input id="f-fim" type="date" oninput="calcTotal()"/></div>
+      </div>
+      <label style="margin-bottom:6px">Tipo de aluguel</label>
+      <div class="tipo-row">
+        <button class="tipo-btn td" id="btn-dia" onclick="setTipo('diario')">📅 Diario</button>
+        <button class="tipo-btn" id="btn-sem" onclick="setTipo('semanal')">📆 Semanal</button>
+      </div>
+      <div class="form-grid">
+        <div id="campo-dia"><label>Valor/dia R$</label><input id="f-valor-dia" type="number" placeholder="0" oninput="calcTotal()"/></div>
+        <div id="campo-sem" class="hidden"><label>Valor/semana R$</label><input id="f-valor-sem" type="number" placeholder="0" oninput="calcTotal()"/></div>
+        <div><label>Deposito / Caucao R$</label><input id="f-deposito" type="number" placeholder="0"/></div>
+      </div>
+      <div class="total-box" id="total-box">Total estimado: R$ 0,00</div>
+    </div>
+
+    <!-- OFICINA -->
+    <div id="ofic-fields" class="hidden">
+      <div class="section-label" style="background:#2d0a0a80;color:#ef4444">🔧 Info da Oficina</div>
+      <div class="form-grid">
+        <div><label>Motivo</label><input id="f-motivo"/></div>
+        <div><label>Data entrada</label><input id="f-tdata" type="date"/></div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:10px"><label>Observacoes</label><input id="f-notas" placeholder="Observacoes..."/></div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1px solid #2a2a3e;background:transparent;color:#6b7280;cursor:pointer;font-size:13px">Cancelar</button>
+      <button onclick="saveCar()" id="save-btn" style="padding:9px 20px;border-radius:8px;border:none;background:#f97316;color:#fff;cursor:pointer;font-weight:700;font-size:13px">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DB = supabase.createClient(
+  "https://krjrjhkyabjsgaxrvsoq.supabase.co",
+  "sb_publishable_ZcVgKCdII5aqKNF1BwN3Ww_a5Pd7fe3"
+);
+
+const STATUS = {
+  disponivel:{label:"Disponivel",color:"#22c55e",bg:"#052e16"},
+  alugado:   {label:"Alugado",   color:"#f59e0b",bg:"#2d1b00"},
+  oficina:   {label:"Na Oficina",color:"#ef4444",bg:"#2d0a0a"},
+  a_receber: {label:"A Receber", color:"#818cf8",bg:"#1a1a3e"},
+};
+const DK=["soat","tecnomecanica","tarjeta_propiedad","seguro"];
+const DL=["DPVAT","CRLV","CRV","Seguro"];
+
+let cars=[],currentFilter="todos",editId=null,tipoAluguel="diario",aiMessages=[];
+
+function brl(v){return "R$ "+Number(v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function docsOk(c){return DK.every(k=>c[k]);}
+function docsFalt(c){return DK.filter(k=>!c[k]).map((k,i)=>DL[DK.indexOf(k)]);}
+
+function diasAteVenc(dateStr){
+  if(!dateStr) return null;
+  const hoje=new Date(); hoje.setHours(0,0,0,0);
+  const venc=new Date(dateStr+"T00:00:00");
+  return Math.ceil((venc-hoje)/86400000);
+}
+
+function vencBadge(dateStr){
+  if(!dateStr) return "";
+  const d=diasAteVenc(dateStr);
+  if(d<0) return `<span class="venc-badge venc-red">Vencido ${Math.abs(d)}d</span>`;
+  if(d<=15) return `<span class="venc-badge venc-yellow">Vence em ${d}d</span>`;
+  if(d<=30) return `<span class="venc-badge venc-yellow">Vence em ${d}d</span>`;
+  return `<span class="venc-badge venc-green">OK ${d}d</span>`;
+}
+
+async function loadCars(){
+  const {data}=await DB.from("vehiculos").select("*").order("id");
+  if(data) cars=data;
+  renderAll();
+  checkAlertas();
+}
+
+function renderAll(){
+  renderDashboard();renderFrota();renderDocs();renderAlug();renderFinanceiro();renderAlertas();
+  const alq=cars.filter(c=>c.status==="alugado").length;
+  const disp=cars.filter(c=>c.status==="disponivel").length;
+  document.getElementById("sidebar-info").textContent=alq+" alugados / "+disp+" disp.";
+}
+
+function getAlertas(){
+  const lista=[];
+  cars.forEach(car=>{
+    // Aluguel vencendo
+    if(car.status==="alugado"&&car.alquiler_fin){
+      const d=diasAteVenc(car.alquiler_fin);
+      if(d<=3&&d>=0) lista.push({tipo:"red",msg:`🚗 ${car.marca} ${car.modelo} (${car.placa}): Aluguel vence em ${d} dia(s)!`,car});
+      else if(d<0) lista.push({tipo:"red",msg:`🚗 ${car.marca} ${car.modelo} (${car.placa}): Aluguel VENCIDO ha ${Math.abs(d)} dia(s)!`,car});
+    }
+    // Multa
+    if(car.multa_valor>0&&car.multa_paga!=="sim"&&car.multa_venc){
+      const d=diasAteVenc(car.multa_venc);
+      if(d<=10) lista.push({tipo:"red",msg:`🚨 ${car.marca} ${car.modelo} (${car.placa}): Multa de ${brl(car.multa_valor)} vence em ${d>=0?d+"d":"VENCIDA"}!`,car});
+    }
+    // Licenciamento
+    if(car.licenc_venc){
+      const d=diasAteVenc(car.licenc_venc);
+      if(d<=30) lista.push({tipo:d<=7?"red":"yellow",msg:`📋 ${car.marca} ${car.modelo} (${car.placa}): Licenciamento vence em ${d>=0?d+"d":"VENCIDO"}`,car});
+    }
+    // IPVA
+    if(car.ipva_venc&&car.ipva_pago!=="sim"){
+      const d=diasAteVenc(car.ipva_venc);
+      if(d<=30) lista.push({tipo:d<=7?"red":"yellow",msg:`💰 ${car.marca} ${car.modelo} (${car.placa}): IPVA ${brl(car.ipva_valor)} vence em ${d>=0?d+"d":"VENCIDO"}`,car});
+    }
+  });
+  return lista;
+}
+
+function renderDashboard(){
+  const total=cars.length,disp=cars.filter(c=>c.status==="disponivel").length;
+  const alq=cars.filter(c=>c.status==="alugado").length,ofic=cars.filter(c=>c.status==="oficina").length;
+  const sinDocs=cars.filter(c=>!docsOk(c)).length;
+  const listos=cars.filter(c=>c.status==="disponivel"&&docsOk(c)).length;
+  const receita=cars.filter(c=>c.status==="alugado").reduce((a,c)=>{
+    if(!c.alquiler_inicio||!c.alquiler_fin) return a;
+    const dias=Math.max(1,Math.ceil((new Date(c.alquiler_fin)-new Date(c.alquiler_inicio))/86400000));
+    if(c.tipo_aluguel==="semanal") return a+Math.ceil(dias/7)*(c.valor_semana||0);
+    return a+dias*(c.valor_dia||0);
+  },0);
+  const depositos=cars.reduce((a,c)=>a+(c.deposito||0),0);
+  const multas=cars.filter(c=>c.multa_paga!=="sim").reduce((a,c)=>a+(c.multa_valor||0),0);
+  const ipva=cars.filter(c=>c.ipva_pago!=="sim").reduce((a,c)=>a+(c.ipva_valor||0),0);
+
+  document.getElementById("dash-date").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+
+  const alertas=getAlertas();
+  document.getElementById("dash-alerts").innerHTML=alertas.slice(0,3).map(a=>`<div class="alert-box ${a.tipo==="red"?"alert-red":"alert-yellow"}">${a.msg}</div>`).join("");
+
+  document.getElementById("dash-stats").innerHTML=[
+    {l:"Total",v:total,c:"#818cf8"},{l:"Disponiveis",v:disp,c:"#22c55e"},
+    {l:"Alugados",v:alq,c:"#f59e0b"},{l:"Na Oficina",v:ofic,c:"#ef4444"},
+  ].map(s=>`<div class="card" style="border-color:${s.c}33"><div class="stat-num" style="color:${s.c}">${s.v}</div><div class="stat-label">${s.l}</div></div>`).join("");
+
+  document.getElementById("dash-finance").innerHTML=`
+    <div class="card" style="border-color:#f9731633"><div class="stat-label">Receita Ativa</div><div style="font-size:18px;font-weight:900;color:#f97316;margin-top:4px">${brl(receita)}</div></div>
+    <div class="card" style="border-color:#818cf833"><div class="stat-label">Depositos</div><div style="font-size:18px;font-weight:900;color:#818cf8;margin-top:4px">${brl(depositos)}</div></div>
+    <div class="card" style="border-color:#ef444433"><div class="stat-label">Multas/IPVA Pend.</div><div style="font-size:18px;font-weight:900;color:#ef4444;margin-top:4px">${brl(multas+ipva)}</div></div>`;
+
+  const pendentes=cars.filter(c=>!docsOk(c));
+  document.getElementById("dash-docs").innerHTML=pendentes.length===0
+    ? '<div style="color:#22c55e;font-size:13px">✓ Todos os documentos em dia</div>'
+    : pendentes.map(c=>`<div class="pending-row"><span style="font-weight:600;font-size:13px;color:#f1f5f9">${c.marca} ${c.modelo} <span style="color:#6b7280;font-weight:400">${c.placa}</span></span><span style="font-size:12px;color:#ef4444">${docsFalt(c).join(", ")}</span></div>`).join("");
+
+  const vencendo=cars.filter(c=>{
+    const dL=diasAteVenc(c.licenc_venc),dI=diasAteVenc(c.ipva_venc),dA=diasAteVenc(c.alquiler_fin),dM=diasAteVenc(c.multa_venc);
+    return (dL!==null&&dL<=30)||(dI!==null&&dI<=30&&c.ipva_pago!=="sim")||(dA!==null&&dA<=3)||(dM!==null&&dM<=10&&c.multa_paga!=="sim");
+  });
+  document.getElementById("dash-venc").innerHTML=vencendo.length===0
+    ? '<div style="color:#22c55e;font-size:13px">✓ Nenhum vencimento proximo</div>'
+    : vencendo.map(c=>{
+        let items=[];
+        if(c.licenc_venc&&diasAteVenc(c.licenc_venc)<=30) items.push("Licenc."+vencBadge(c.licenc_venc));
+        if(c.ipva_venc&&diasAteVenc(c.ipva_venc)<=30&&c.ipva_pago!=="sim") items.push("IPVA"+vencBadge(c.ipva_venc));
+        if(c.alquiler_fin&&diasAteVenc(c.alquiler_fin)<=3) items.push("Aluguel"+vencBadge(c.alquiler_fin));
+        if(c.multa_venc&&diasAteVenc(c.multa_venc)<=10&&c.multa_paga!=="sim") items.push("Multa"+vencBadge(c.multa_venc));
+        return `<div class="pending-row"><span style="font-weight:600;color:#f1f5f9">${c.marca} ${c.modelo} ${c.placa}</span><span>${items.join(" ")}</span></div>`;
+      }).join("");
+}
+
+function renderFrota(){
+  const filtered=currentFilter==="todos"?cars:cars.filter(c=>c.status===currentFilter);
+  document.getElementById("frota-count").textContent=cars.length+" veiculos cadastrados";
+  document.getElementById("car-grid").innerHTML=filtered.length===0
+    ? '<div style="color:#4a4a6a;padding:20px">Nenhum veiculo neste status.</div>'
+    : filtered.map(car=>{
+        const st=STATUS[car.status]||STATUS.disponivel;
+        const docs=DK.map((k,i)=>`<span class="doc-badge ${car[k]?"doc-ok":"doc-no"}">${car[k]?"OK":"X"} ${DL[i]}</span>`).join("");
+        let extra="";
+        if(car.status==="alugado"&&car.cliente_nombre){
+          const tipo=car.tipo_aluguel==="semanal"?"semanal":"diario";
+          const val=car.tipo_aluguel==="semanal"?brl(car.valor_semana)+"/sem":brl(car.valor_dia)+"/dia";
+          extra+=`<div class="info-box info-alug">👤 ${car.cliente_nombre} · ate ${car.alquiler_fin||"?"} · ${val} · ${tipo}</div>`;
+          if(car.deposito>0) extra+=`<div class="info-box info-dep">🏦 Deposito: ${brl(car.deposito)}</div>`;
+        }
+        if(car.status==="oficina"&&car.taller_motivo) extra+=`<div class="info-box info-ofic">🔧 ${car.taller_motivo}</div>`;
+        if(car.multa_valor>0&&car.multa_paga!=="sim") extra+=`<div class="info-box info-multa">🚨 Multa: ${brl(car.multa_valor)}${car.multa_desc?" - "+car.multa_desc:""}</div>`;
+        const dL=diasAteVenc(car.licenc_venc),dI=diasAteVenc(car.ipva_venc);
+        if(dL!==null&&dL<=30) extra+=`<div class="info-box info-venc">📋 Licenc. vence em ${dL>=0?dL+"d":"VENCIDO"}</div>`;
+        if(dI!==null&&dI<=30&&car.ipva_pago!=="sim") extra+=`<div class="info-box info-venc">💰 IPVA vence em ${dI>=0?dI+"d":"VENCIDO"} - ${brl(car.ipva_valor)}</div>`;
+        const nota=car.notas?`<div style="font-size:12px;color:#818cf8;margin:4px 0">📝 ${car.notas}</div>`:"";
+        return `<div class="car-card">
+          <div style="display:flex;justify-content:space-between;margin-bottom:7px">
+            <div><div style="font-size:14px;font-weight:700;color:#f1f5f9">${car.marca} ${car.modelo} ${car.ano}</div><div style="font-size:12px;color:#6b7280">${car.placa} - ${car.color}</div></div>
+            <span class="badge" style="color:${st.color};background:${st.bg}">${st.label}</span>
+          </div>
+          <div class="docs-row">${docs}</div>
+          ${extra}${nota}
+          <div class="btn-row">
+            <button class="btn btn-blue" onclick="openEdit(${car.id})">Editar</button>
+            <button class="btn btn-red" onclick="delCar(${car.id})">Excluir</button>
+          </div>
+        </div>`;
+      }).join("");
+}
+
+function renderDocs(){
+  document.getElementById("docs-sub").textContent=cars.filter(c=>!docsOk(c)).length+" veiculos com docs incompletos";
+  document.getElementById("docs-body").innerHTML=cars.map(car=>{
+    const st=STATUS[car.status]||STATUS.disponivel;
+    return `<tr>
+      <td style="font-weight:600;color:#f1f5f9">${car.marca} ${car.modelo}</td>
+      <td style="color:#6b7280">${car.placa}</td>
+      <td><span class="badge" style="color:${st.color};background:${st.bg}">${st.label}</span></td>
+      ${DK.map(k=>`<td style="text-align:center">${car[k]?"✅":"❌"}</td>`).join("")}
+      <td>${car.licenc_venc?vencBadge(car.licenc_venc):"<span style='color:#4a4a6a'>-</span>"}</td>
+      <td>${car.ipva_pago==="sim"?"✅":car.ipva_venc?vencBadge(car.ipva_venc):"<span style='color:#4a4a6a'>-</span>"}</td>
+      <td><button class="btn btn-blue" onclick="openEdit(${car.id})">Editar</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function renderAlug(){
+  const alq=cars.filter(c=>c.status==="alugado").length,disp=cars.filter(c=>c.status==="disponivel").length;
+  document.getElementById("alug-sub").textContent=alq+" ativos / "+disp+" disponiveis";
+  document.getElementById("alug-list").innerHTML=alq===0
+    ? '<div style="font-size:13px;color:#4a4a6a">Nenhum aluguel ativo</div>'
+    : cars.filter(c=>c.status==="alugado").map(car=>{
+        const tipo=car.tipo_aluguel==="semanal"?"Semanal":"Diario";
+        const val=car.tipo_aluguel==="semanal"?brl(car.valor_semana)+"/sem":brl(car.valor_dia)+"/dia";
+        return `<div style="padding:10px;background:#0a0a0f;border-radius:10px;margin-bottom:8px">
+          <div style="font-weight:700;font-size:13px;color:#f1f5f9">${car.marca} ${car.modelo} <span style="color:#6b7280;font-size:11px">${car.placa}</span></div>
+          <div style="font-size:12px;color:#f59e0b">📅 ${tipo} · ${val}</div>
+          ${car.cliente_nombre?`<div style="font-size:12px;color:#6b7280">👤 ${car.cliente_nombre} · ${car.cliente_cedula||""}</div>`:""}
+          ${car.alquiler_inicio?`<div style="font-size:12px;color:#6b7280">De ${car.alquiler_inicio} ate ${car.alquiler_fin||"?"} ${vencBadge(car.alquiler_fin)}</div>`:""}
+          ${car.deposito>0?`<div style="font-size:12px;color:#818cf8">🏦 Deposito: ${brl(car.deposito)}</div>`:""}
+          <button class="btn btn-blue" style="margin-top:6px" onclick="openEdit(${car.id})">Editar</button>
+        </div>`;
+      }).join("");
+  document.getElementById("disp-list").innerHTML=disp===0
+    ? '<div style="font-size:13px;color:#4a4a6a">Nenhum disponivel</div>'
+    : cars.filter(c=>c.status==="disponivel").map(car=>`
+        <div style="padding:10px;background:#0a0a0f;border-radius:10px;margin-bottom:8px">
+          <div style="font-weight:700;font-size:13px;color:#f1f5f9">${car.marca} ${car.modelo}</div>
+          <div style="font-size:12px;color:#6b7280">${car.placa}</div>
+          <div style="font-size:12px;color:${docsOk(car)?"#22c55e":"#ef4444"}">${docsOk(car)?"✓ Pronto":"✗ Docs: "+docsFalt(car).join(", ")}</div>
+          <button class="btn btn-green" style="margin-top:6px" onclick="openEdit(${car.id})">Registrar aluguel</button>
+        </div>`).join("");
+}
+
+function renderFinanceiro(){
+  const totalMultas=cars.filter(c=>c.multa_paga!=="sim").reduce((a,c)=>a+(c.multa_valor||0),0);
+  const totalIPVA=cars.filter(c=>c.ipva_pago!=="sim").reduce((a,c)=>a+(c.ipva_valor||0),0);
+  const totalDep=cars.reduce((a,c)=>a+(c.deposito||0),0);
+  document.getElementById("fin-stats").innerHTML=`
+    <div class="card" style="border-color:#f472b633"><div class="stat-label">Multas Pendentes</div><div style="font-size:18px;font-weight:900;color:#f472b6;margin-top:4px">${brl(totalMultas)}</div></div>
+    <div class="card" style="border-color:#60a5fa33"><div class="stat-label">IPVA Pendente</div><div style="font-size:18px;font-weight:900;color:#60a5fa;margin-top:4px">${brl(totalIPVA)}</div></div>
+    <div class="card" style="border-color:#818cf833"><div class="stat-label">Depositos em Maos</div><div style="font-size:18px;font-weight:900;color:#818cf8;margin-top:4px">${brl(totalDep)}</div></div>`;
+
+  const comMulta=cars.filter(c=>c.multa_valor>0);
+  document.getElementById("multas-list").innerHTML=comMulta.length===0
+    ? '<div style="color:#4a4a6a;font-size:13px">Nenhuma multa registrada</div>'
+    : comMulta.map(c=>`<div class="pending-row">
+        <div>
+          <span style="font-weight:600;color:#f1f5f9">${c.marca} ${c.modelo} (${c.placa})</span>
+          ${c.multa_desc?`<div style="font-size:12px;color:#6b7280">${c.multa_desc}</div>`:""}
+          ${c.multa_venc?`<div style="font-size:12px;color:#6b7280">Venc: ${c.multa_venc} ${vencBadge(c.multa_venc)}</div>`:""}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:14px;font-weight:700;color:#f472b6">${brl(c.multa_valor)}</div>
+          <span class="badge" style="color:${c.multa_paga==="sim"?"#22c55e":"#ef4444"};background:${c.multa_paga==="sim"?"#052e16":"#2d0a0a"}">${c.multa_paga==="sim"?"Pago":"Pendente"}</span>
+        </div>
+      </div>`).join("");
+
+  const comIPVA=cars.filter(c=>c.ipva_valor>0||c.licenc_venc);
+  document.getElementById("ipva-list").innerHTML=comIPVA.length===0
+    ? '<div style="color:#4a4a6a;font-size:13px">Nenhum registro de IPVA/Licenciamento</div>'
+    : comIPVA.map(c=>`<div class="pending-row">
+        <div>
+          <span style="font-weight:600;color:#f1f5f9">${c.marca} ${c.modelo} (${c.placa})</span>
+          ${c.licenc_venc?`<div style="font-size:12px;color:#6b7280">Licenc: ${c.licenc_venc} ${vencBadge(c.licenc_venc)}</div>`:""}
+          ${c.ipva_venc?`<div style="font-size:12px;color:#6b7280">IPVA venc: ${c.ipva_venc} ${vencBadge(c.ipva_venc)}</div>`:""}
+        </div>
+        <div style="text-align:right">
+          ${c.ipva_valor?`<div style="font-size:14px;font-weight:700;color:#60a5fa">${brl(c.ipva_valor)}</div>`:""}
+          <span class="badge" style="color:${c.ipva_pago==="sim"?"#22c55e":"#ef4444"};background:${c.ipva_pago==="sim"?"#052e16":"#2d0a0a"}">${c.ipva_pago==="sim"?"Pago":c.ipva_pago==="parcelado"?"Parcelado":"Pendente"}</span>
+        </div>
+      </div>`).join("");
+
+  const comDep=cars.filter(c=>c.deposito>0);
+  document.getElementById("dep-list").innerHTML=comDep.length===0
+    ? '<div style="color:#4a4a6a;font-size:13px">Nenhum deposito registrado</div>'
+    : comDep.map(c=>`<div class="pending-row">
+        <span style="font-weight:600;color:#f1f5f9">${c.marca} ${c.modelo} (${c.placa}) <span style="color:#6b7280;font-weight:400">${c.cliente_nombre||""}</span></span>
+        <span style="font-size:14px;font-weight:700;color:#818cf8">${brl(c.deposito)}</span>
+      </div>`).join("");
+}
+
+function renderAlertas(){
+  const alertas=getAlertas();
+  document.getElementById("alertas-content").innerHTML=alertas.length===0
+    ? '<div class="card" style="color:#22c55e;font-size:14px;text-align:center;padding:24px">✅ Nenhum alerta pendente! Tudo em ordem.</div>'
+    : alertas.map(a=>`<div class="alert-box ${a.tipo==="red"?"alert-red":"alert-yellow"}" style="margin-bottom:8px">${a.msg}</div>`).join("");
+  const st=Notification.permission;
+  document.getElementById("notif-status").textContent=st==="granted"?"✅ Notificacoes ativas":st==="denied"?"❌ Notificacoes bloqueadas no navegador":"⚠️ Notificacoes nao ativadas";
+}
+
+async function pedirNotificacoes(){
+  const perm=await Notification.requestPermission();
+  if(perm==="granted"){
+    document.getElementById("notif-status").textContent="✅ Notificacoes ativas!";
+    new Notification("MardoCars 🚗",{body:"Notificacoes ativadas com sucesso!",icon:""});
+  } else {
+    document.getElementById("notif-status").textContent="❌ Permissao negada. Ative nas configuracoes do navegador.";
+  }
+}
+
+function checkAlertas(){
+  if(Notification.permission!=="granted") return;
+  const alertas=getAlertas();
+  alertas.filter(a=>a.tipo==="red").slice(0,3).forEach(a=>{
+    new Notification("⚠️ MardoCars - Alerta",{body:a.msg});
+  });
+}
+
+function goTo(page,el){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
+  document.getElementById("page-"+page).classList.add("active");
+  if(el) el.classList.add("active");
+}
+function setFilter(f,btn){
+  currentFilter=f;
+  document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  renderFrota();
+}
+function setTipo(t){
+  tipoAluguel=t;
+  document.getElementById("btn-dia").className="tipo-btn"+(t==="diario"?" td":"");
+  document.getElementById("btn-sem").className="tipo-btn"+(t==="semanal"?" ts":"");
+  document.getElementById("campo-dia").classList.toggle("hidden",t!=="diario");
+  document.getElementById("campo-sem").classList.toggle("hidden",t!=="semanal");
+  calcTotal();
+}
+function calcTotal(){
+  const ini=document.getElementById("f-inicio").value,fim=document.getElementById("f-fim").value;
+  let txt="Total estimado: R$ 0,00";
+  if(ini&&fim){
+    const dias=Math.max(1,Math.ceil((new Date(fim)-new Date(ini))/86400000));
+    if(tipoAluguel==="diario"){const vd=parseFloat(document.getElementById("f-valor-dia").value)||0;txt="Total: "+brl(dias*vd)+" ("+dias+"d x "+brl(vd)+")";}
+    else{const vs=parseFloat(document.getElementById("f-valor-sem").value)||0;const s=Math.ceil(dias/7);txt="Total: "+brl(s*vs)+" ("+s+"sem x "+brl(vs)+")";}
+  }
+  document.getElementById("total-box").textContent=txt;
+}
+function toggleFields(){
+  const st=document.getElementById("f-status").value;
+  document.getElementById("alug-fields").classList.toggle("hidden",st!=="alugado");
+  document.getElementById("ofic-fields").classList.toggle("hidden",st!=="oficina");
+}
+function openNew(){
+  editId=null;tipoAluguel="diario";
+  document.getElementById("modal-title").textContent="Adicionar veiculo";
+  ["f-marca","f-modelo","f-placa","f-color","f-cliente","f-cedula","f-inicio","f-fim","f-valor-dia","f-valor-sem","f-deposito","f-motivo","f-notas","f-licenc","f-ipva-valor","f-ipva-venc","f-multa-desc","f-multa-valor","f-multa-venc"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  document.getElementById("f-ano").value="2024";
+  document.getElementById("f-status").value="disponivel";
+  document.getElementById("f-ipva-pago").value="nao";
+  document.getElementById("f-multa-paga").value="nao";
+  ["f-soat","f-tecno","f-tarjeta","f-seguro"].forEach(id=>document.getElementById(id).checked=false);
+  setTipo("diario");toggleFields();calcTotal();
+  document.getElementById("modal-overlay").classList.remove("hidden");
+}
+function openEdit(id){
+  const car=cars.find(c=>c.id===id);if(!car)return;
+  editId=id;tipoAluguel=car.tipo_aluguel||"diario";
+  document.getElementById("modal-title").textContent="Editar veiculo";
+  document.getElementById("f-marca").value=car.marca||"";
+  document.getElementById("f-modelo").value=car.modelo||"";
+  document.getElementById("f-placa").value=car.placa||"";
+  document.getElementById("f-ano").value=car.ano||2024;
+  document.getElementById("f-color").value=car.color||"";
+  document.getElementById("f-status").value=car.status||"disponivel";
+  document.getElementById("f-soat").checked=!!car.soat;
+  document.getElementById("f-tecno").checked=!!car.tecnomecanica;
+  document.getElementById("f-tarjeta").checked=!!car.tarjeta_propiedad;
+  document.getElementById("f-seguro").checked=!!car.seguro;
+  document.getElementById("f-licenc").value=car.licenc_venc||"";
+  document.getElementById("f-ipva-valor").value=car.ipva_valor||"";
+  document.getElementById("f-ipva-venc").value=car.ipva_venc||"";
+  document.getElementById("f-ipva-pago").value=car.ipva_pago||"nao";
+  document.getElementById("f-multa-desc").value=car.multa_desc||"";
+  document.getElementById("f-multa-valor").value=car.multa_valor||"";
+  document.getElementById("f-multa-venc").value=car.multa_venc||"";
+  document.getElementById("f-multa-paga").value=car.multa_paga||"nao";
+  document.getElementById("f-cliente").value=car.cliente_nombre||"";
+  document.getElementById("f-cedula").value=car.cliente_cedula||"";
+  document.getElementById("f-inicio").value=car.alquiler_inicio||"";
+  document.getElementById("f-fim").value=car.alquiler_fin||"";
+  document.getElementById("f-valor-dia").value=car.valor_dia||"";
+  document.getElementById("f-valor-sem").value=car.valor_semana||"";
+  document.getElementById("f-deposito").value=car.deposito||"";
+  document.getElementById("f-motivo").value=car.taller_motivo||"";
+  document.getElementById("f-tdata").value=car.taller_fecha||"";
+  document.getElementById("f-notas").value=car.notas||"";
+  setTipo(tipoAluguel);toggleFields();calcTotal();
+  document.getElementById("modal-overlay").classList.remove("hidden");
+}
+function closeModal(){document.getElementById("modal-overlay").classList.add("hidden");}
+async function saveCar(){
+  const btn=document.getElementById("save-btn");
+  btn.textContent="Salvando...";btn.disabled=true;
+  const p={
+    marca:document.getElementById("f-marca").value,
+    modelo:document.getElementById("f-modelo").value,
+    placa:document.getElementById("f-placa").value,
+    ano:parseInt(document.getElementById("f-ano").value)||2024,
+    color:document.getElementById("f-color").value,
+    status:document.getElementById("f-status").value,
+    soat:document.getElementById("f-soat").checked,
+    tecnomecanica:document.getElementById("f-tecno").checked,
+    tarjeta_propiedad:document.getElementById("f-tarjeta").checked,
+    seguro:document.getElementById("f-seguro").checked,
+    licenc_venc:document.getElementById("f-licenc").value||null,
+    ipva_valor:parseFloat(document.getElementById("f-ipva-valor").value)||null,
+    ipva_venc:document.getElementById("f-ipva-venc").value||null,
+    ipva_pago:document.getElementById("f-ipva-pago").value,
+    multa_desc:document.getElementById("f-multa-desc").value||null,
+    multa_valor:parseFloat(document.getElementById("f-multa-valor").value)||null,
+    multa_venc:document.getElementById("f-multa-venc").value||null,
+    multa_paga:document.getElementById("f-multa-paga").value,
+    cliente_nombre:document.getElementById("f-cliente").value||null,
+    cliente_cedula:document.getElementById("f-cedula").value||null,
+    alquiler_inicio:document.getElementById("f-inicio").value||null,
+    alquiler_fin:document.getElementById("f-fim").value||null,
+    tipo_aluguel:tipoAluguel,
+    valor_dia:parseFloat(document.getElementById("f-valor-dia").value)||null,
+    valor_semana:parseFloat(document.getElementById("f-valor-sem").value)||null,
+    deposito:parseFloat(document.getElementById("f-deposito").value)||null,
+    taller_motivo:document.getElementById("f-motivo").value||null,
+    taller_fecha:document.getElementById("f-tdata").value||null,
+    notas:document.getElementById("f-notas").value||null,
+  };
+  if(editId){await DB.from("vehiculos").update(p).eq("id",editId);}
+  else{await DB.from("vehiculos").insert(p);}
+  await loadCars();closeModal();
+  btn.textContent="Salvar";btn.disabled=false;
+}
+async function delCar(id){
+  if(!confirm("Excluir este veiculo?"))return;
+  await DB.from("vehiculos").delete().eq("id",id);
+  await loadCars();
+}
+async function askAI(q){
+  document.getElementById("suggestions").classList.add("hidden");
+  const empty=document.getElementById("chat-empty");if(empty)empty.remove();
+  const msgs=document.getElementById("chat-msgs");
+  const um=document.createElement("div");um.className="msg msg-user";um.textContent=q;
+  msgs.appendChild(um);msgs.scrollTop=msgs.scrollHeight;
+  document.getElementById("ai-input").value="";
+  const th=document.createElement("div");th.className="msg msg-ai";th.textContent="Analisando...";
+  msgs.appendChild(th);msgs.scrollTop=msgs.scrollHeight;
+  const total=cars.length,disp=cars.filter(c=>c.status==="disponivel").length,alq=cars.filter(c=>c.status==="alugado").length;
+  const multas=cars.filter(c=>c.multa_paga!=="sim").reduce((a,c)=>a+(c.multa_valor||0),0);
+  const ipva=cars.filter(c=>c.ipva_pago!=="sim").reduce((a,c)=>a+(c.ipva_valor||0),0);
+  const ctx=`Frota MardoCars Brasil: ${total} veiculos. Disp:${disp} Alugados:${alq} SemDocs:${cars.filter(c=>!docsOk(c)).length} MultasPend:R$${multas} IPVAPend:R$${ipva}\n`+
+    cars.map(c=>`${c.marca} ${c.modelo} ${c.placa} [${STATUS[c.status]?.label||c.status}]${c.cliente_nombre?` cli:${c.cliente_nombre} ate:${c.alquiler_fin}`:""} multa:${c.multa_valor||0} ipva:${c.ipva_valor||0} licenc:${c.licenc_venc||"nao"}`).join("\n");
+  aiMessages.push({role:"user",content:q});
+  try{
+    const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,system:"Especialista em gestao de frotas no Brasil. Responda em portugues, seja conciso e pratico.\n"+ctx,messages:aiMessages})});
+    const data=await r.json();
+    const txt=(data.content||[]).find(b=>b.type==="text")?.text||"Sem resposta.";
+    th.textContent=txt;aiMessages.push({role:"assistant",content:txt});
+  }catch(e){th.textContent="Erro de conexao.";}
+  msgs.scrollTop=msgs.scrollHeight;
+}
+function sendAI(){const q=document.getElementById("ai-input").value.trim();if(q)askAI(q);}
+
+loadCars();
+// Checar alertas a cada 6 horas
+setInterval(checkAlertas,6*60*60*1000);
+</script>
+</body>
+</html>
